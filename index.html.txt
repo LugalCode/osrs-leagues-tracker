@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OSRS Leagues Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+```
+h1 { text-align: center; }
+
+.section { margin-bottom: 25px; }
+
+.step {
+  padding: 8px;
+  margin: 4px 0;
+  background: #2a2a40;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.step.completed {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+input { margin-right: 10px; }
+
+.progress-container {
+  margin: 20px 0;
+  background: #444;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 16px;
+  background: #4caf50;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+textarea {
+  width: 100%;
+  height: 120px;
+  margin-top: 10px;
+  background: #111;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 10px;
+  font-size: 12px;
+}
+
+button {
+  margin-top: 8px;
+  margin-right: 5px;
+  padding: 8px 12px;
+  background: #4caf50;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+button:hover {
+  background: #66bb6a;
+}
+
+.danger {
+  background: #e53935;
+}
+
+.danger:hover {
+  background: #ef5350;
+}
+```
+
+  </style>
+</head>
+<body>
+
+<h1>OSRS Leagues Progress Tracker</h1>
+
+<div class="progress-container">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<button class="danger" onclick="resetProgress()">Reset Progress</button>
+
+<h3>Paste Wiki / Guide Text</h3>
+<textarea id="wikiInput" placeholder="Paste wiki steps or bullet list here..."></textarea>
+<button onclick="convertWikiText()">Convert to Checklist</button>
+
+<h3>Checklist JSON</h3>
+<textarea id="jsonInput" placeholder="JSON will appear here..."></textarea>
+<button onclick="loadFromInput()">Load Steps</button>
+
+<div id="app"></div>
+
+<script>
+let saved = JSON.parse(localStorage.getItem("osrsTracker")) || {};
+let stepsData = [];
+
+async function loadJSON() {
+  try {
+    const res = await fetch("steps.json");
+    stepsData = await res.json();
+    render();
+  } catch {
+    console.warn("No steps.json found.");
+  }
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  let total = 0, completed = 0;
+
+  stepsData.forEach((sec) => {
+    const sectionDiv = document.createElement("div");
+    sectionDiv.className = "section";
+
+    const title = document.createElement("h2");
+    title.textContent = sec.section;
+    sectionDiv.appendChild(title);
+
+    sec.items.forEach((item) => {
+      const key = item;
+      const isChecked = saved[key] || false;
+
+      total++;
+      if (isChecked) completed++;
+
+      const div = document.createElement("div");
+      div.className = "step" + (isChecked ? " completed" : "");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = isChecked;
+
+      checkbox.onchange = () => {
+        saved[key] = checkbox.checked;
+        localStorage.setItem("osrsTracker", JSON.stringify(saved));
+        render();
+      };
+
+      const label = document.createElement("span");
+      label.textContent = item;
+
+      div.appendChild(checkbox);
+      div.appendChild(label);
+      sectionDiv.appendChild(div);
+    });
+
+    app.appendChild(sectionDiv);
+  });
+
+  document.getElementById("progressBar").style.width =
+    (total ? (completed / total) * 100 : 0) + "%";
+}
+
+// Convert wiki-style text into JSON
+function convertWikiText() {
+  const raw = document.getElementById("wikiInput").value;
+  const lines = raw.split("\n");
+
+  let result = [];
+  let currentSection = null;
+
+  lines.forEach(line => {
+    line = line.trim();
+    if (!line) return;
+
+    // Section detection
+    if (line.startsWith("==") || line.endsWith(":")) {
+      const clean = line.replace(/=+/g, "").replace(":", "").trim();
+      currentSection = { section: clean, items: [] };
+      result.push(currentSection);
+      return;
+    }
+
+    // Bullet points
+    if (line.startsWith("*") || line.startsWith("-") || line.startsWith("•")) {
+      const clean = line.replace(/^[*\-•]\s*/, "");
+      if (currentSection) currentSection.items.push(clean);
+      return;
+    }
+
+    // Fallback
+    if (currentSection) {
+      currentSection.items.push(line);
+    }
+  });
+
+  document.getElementById("jsonInput").value =
+    JSON.stringify(result, null, 2);
+}
+
+function loadFromInput() {
+  try {
+    stepsData = JSON.parse(document.getElementById("jsonInput").value);
+    render();
+  } catch {
+    alert("Invalid JSON format");
+  }
+}
+
+function resetProgress() {
+  localStorage.removeItem("osrsTracker");
+  saved = {};
+  render();
+}
+
+loadJSON();
+</script>
+
+</body>
+</html>

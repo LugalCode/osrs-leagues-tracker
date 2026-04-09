@@ -1,0 +1,8 @@
+[
+{
+"section": "Starting out: Money and Early Hunter (Tier I)",
+"items": [
+"Paste wiki section above and convert to populate steps"
+]
+}
+]
